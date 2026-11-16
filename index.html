@@ -1666,7 +1666,8 @@ code, pre, .hugo-mono { font-family: "Roboto Mono", ui-monospace, "SF Mono", Con
   .tipwrap .tip.tip-down::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #303036; }
 </style>
 </helmet>
-<div style="height: 100%; min-height: 100%; position: relative;">
+<div style="height: 100%; min-height: 100%; position: relative; display: flex; flex-direction: column; background: #17171C;">
+<div style="flex: 1; min-height: 0; position: relative; transform: translateZ(0); overflow: hidden;">
 <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
 <div style="height: 100%; min-height: 100%; position: relative; overflow: hidden; color: #303036; background: #FFFFFF;">
   <sc-if value="{{ ctxTask }}" hint-placeholder-val="{{ true }}">
@@ -2605,7 +2606,7 @@ code, pre, .hugo-mono { font-family: "Roboto Mono", ui-monospace, "SF Mono", Con
 </div>
 </sc-if>
 <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
-<div style="height: 100%; background: #E3E6EE; display: flex; padding: 24px 16px 72px; overflow: auto; color: #303036;">
+<div style="height: 100%; background: #E3E6EE; display: flex; padding: 24px 16px; overflow: auto; color: #303036;">
   <div style="position: relative; width: 360px; height: 800px; margin: auto; flex: none; background: #F5F6F8; border-radius: 28px; box-shadow: 0 0 0 8px #1D204E, 0 20px 48px rgba(29,32,78,0.28); overflow: hidden; display: flex; flex-direction: column;">
 
     <sc-if value="{{ mMain }}" hint-placeholder-val="{{ true }}">
@@ -3088,9 +3089,10 @@ code, pre, .hugo-mono { font-family: "Roboto Mono", ui-monospace, "SF Mono", Con
   </div>
 </div>
 </sc-if>
-  <div style="position: fixed; left: 16px; bottom: 16px; z-index: 50; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;">
+</div>
+  <div style="flex: none; height: 52px; position: relative; z-index: 100; display: flex; align-items: center; padding: 0 16px; background: #17171C; border-top: 1px solid #2A2A31;">
     <sc-if value="{{ ctrlOpen }}" hint-placeholder-val="{{ false }}">
-      <div style="width: 300px; background: #1D204E; color: #FFFFFF; border-radius: 12px; padding: 14px 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 12px;">
+      <div style="position: absolute; left: 16px; bottom: 60px; width: 300px; background: #1D204E; color: #FFFFFF; border-radius: 12px; padding: 14px 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 12px;">
         <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.4px; color: #C5D4F8;">CASUÍSTICAS DEL PROTOTIPO</div>
         <sc-for list="{{ ctrls }}" as="c" hint-placeholder-count="2">
           <div onClick="{{ c.onToggle }}" style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
@@ -3183,6 +3185,9 @@ for (let i = 0; i < 240; i++) {
   PEOPLE.push(p);
 }
 
+const SCOPE_LABEL = "Argentina";
+const inScope = p => p.attrs.pais === SCOPE_LABEL;
+const SCOPE_TOTAL = Math.round(TOTAL * PEOPLE.filter(inScope).length / PEOPLE.length);
 const fmt = n => Math.round(n).toLocaleString("es-AR");
 const initials = n => n.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
 const fieldOf = id => FIELDS.find(f => f.id === id) || FIELDS[0];
@@ -3277,14 +3282,14 @@ class Component extends DCLogic {
 
   showExcCard() {
     const st = this.state;
-    return !(st.allowCommunity && st.mode === "audience" && !st.later);
+    return !(st.mode === "audience" && !st.later);
   }
 
   reachNow() {
     const st = this.state;
     if (st.later) return 0;
     const exc = this.showExcCard() ? st.excluded.length : 0;
-    if (st.allowCommunity && st.mode === "all") return Math.max(0, TOTAL - exc);
+    if (st.mode === "all") return Math.max(0, (st.allowCommunity ? TOTAL : SCOPE_TOTAL) - exc);
     if (st.mode === "audience" && st.applied) return Math.max(0, this.audReach(st.applied) - exc);
     return 0;
   }
@@ -3293,7 +3298,7 @@ class Component extends DCLogic {
     const exc = {}; (excluded || []).forEach(id => exc[id] = true);
     return PEOPLE.filter(p => {
       if (exc[p.id]) return false;
-      if (src.all) return true;
+      if (src.all) return !src.scoped || inScope(p);
       if (src.included.indexOf(p.id) >= 0) return true;
       return src.groups.some(g => {
         const act = g.conds.filter(c => c.values.length);
@@ -3454,7 +3459,7 @@ class Component extends DCLogic {
 
     const optSel = id => st.mode === id && !later;
     const options = [
-      { id: "all", icon: "ti-world", title: "Toda la comunidad", desc: "Todos los colaboradores.",
+      { id: "all", icon: st.allowCommunity ? "ti-world" : "ti-shield-check", title: st.allowCommunity ? "Toda la comunidad" : "Todos los de mi alcance", desc: st.allowCommunity ? "Todos los colaboradores." : "Colaboradores de " + SCOPE_LABEL + ".",
         onPick: () => this.setState({ mode: "all", later: false }) },
       { id: "audience", icon: "ti-users-group", title: "Una audiencia determinada",
         desc: optSel("audience") && applied ? "Alcance: " + fmt(this.audReach(applied)) + " colaboradores." : "Crea grupos y suma personas puntuales.",
@@ -3472,7 +3477,7 @@ class Component extends DCLogic {
         radioBorder: on ? "#496BE3" : "#AAAABA",
         radioDot: on ? "#496BE3" : "transparent",
         hasPill: o.id === "audience" && on && !!applied,
-        mDesc: o.id === "audience" ? (on && applied ? "Alcance: " + fmt(this.audReach(applied)) + " colaboradores." : "Combina grupos y personas.") : "Todos los colaboradores.",
+        mDesc: o.id === "audience" ? (on && applied ? "Alcance: " + fmt(this.audReach(applied)) + " colaboradores." : "Combina grupos y personas.") : o.desc,
         pill: applied ? "Alcance: " + fmt(this.audReach(applied)) : "",
         onClear: e => { e.stopPropagation(); this.setState({ applied: null, mode: null }); }
       };
@@ -3488,8 +3493,8 @@ class Component extends DCLogic {
       steps,
       stop: e => e.stopPropagation(),
       sidebarMembers: later ? "Se definirá más tarde" : (reach ? fmt(reach) + " usuarios" : "-"),
-      allowCommunity: st.allowCommunity,
-      noCommunity: !st.allowCommunity,
+      allowCommunity: true,
+      noCommunity: false,
       options,
       onOpenAudience: openAud,
       hasAudience: !!applied,
@@ -3519,7 +3524,7 @@ class Component extends DCLogic {
       ctrlOpen: st.ctrlOpen,
       onToggleCtrl: () => this.setState(s => ({ ctrlOpen: !s.ctrlOpen })),
       ctrls: [
-        { key: "allowCommunity", label: "Permite «Toda la comunidad»", hint: "Apagado: flujos donde solo se configura una audiencia." },
+        { key: "allowCommunity", label: "Permite «Toda la comunidad»", hint: "Apagado: el admin elige «Todos los de mi alcance» (sus permisos)." },
         { key: "allowLater", label: "Permite «Definir más tarde»", hint: "Flujos donde la audiencia puede definirse luego." }
       ].map(c => {
         const on = !!st[c.key];
@@ -3527,7 +3532,6 @@ class Component extends DCLogic {
           ...c, trackBg: on ? "#496BE3" : "#636271", knobLeft: on ? "18px" : "2px",
           onToggle: () => this.setState(s => {
             const next = { [c.key]: !s[c.key] };
-            if (c.key === "allowCommunity" && s.allowCommunity && s.mode === "all") next.mode = s.applied ? "audience" : null;
             if (c.key === "allowLater" && s.allowLater) next.later = false;
             return next;
           })
@@ -3570,7 +3574,7 @@ class Component extends DCLogic {
       onPick: () => this.setState({ ctx: cx.id, hostOpen: true, popOpen: false, audOpen: false, excOpen: false, detOpen: false,
         audClosing: false, excClosing: false, detClosing: false, menu: null, mFilter: false, later: cx.id === "task" ? this.state.later : false }) }));
     vals.layerJustify = isDlg ? "center" : "flex-end";
-    vals.layerH = isDlg ? "min(720px, 92vh)" : "100%";
+    vals.layerH = isDlg ? "min(720px, 92%)" : "100%";
     vals.layerRadius = isDlg ? "16px" : "16px 0 0 16px";
     vals.audW = isDlg ? "1238px" : "1352px";
     vals.layerBack = ctx !== "task";
@@ -3596,14 +3600,14 @@ class Component extends DCLogic {
     vals.onTogglePop = e => { e.stopPropagation(); this.setState(s => ({ popOpen: !s.popOpen })); };
     vals.popOpen = !!st.popOpen;
     vals.popOptions = options.map(o => ({ ...o,
-      popDesc: o.id === "all" ? "Todos los miembros de la organización." : o.desc,
+      popDesc: o.id === "all" && st.allowCommunity ? "Todos los miembros de la organización." : o.desc,
       onPick: () => { this.setState({ popOpen: false }); o.onPick(); } }));
     vals.popOpenAudience = () => { this.setState({ popOpen: false }); openAud(); };
     vals.popOpenExc = () => { this.setState({ popOpen: false }); vals.onOpenExc(); };
     vals.popExcDesc = exc.length ? plural(exc.length, "colaborador excluido", "colaboradores excluidos") + "." : "Excluye colaboradores de la audiencia.";
     const audOn = st.mode === "audience" && !!applied;
-    vals.modalAudLabel = st.mode === "all" && st.allowCommunity ? "Toda la organización" : (audOn ? "Audiencia determinada" : "Definir audiencia");
-    vals.modalAudIcon = st.mode === "all" && st.allowCommunity ? "ti-world" : "ti-users-group";
+    vals.modalAudLabel = st.mode === "all" ? (st.allowCommunity ? "Toda la organización" : "Todos los de mi alcance") : (audOn ? "Audiencia determinada" : "Definir audiencia");
+    vals.modalAudIcon = st.mode === "all" ? (st.allowCommunity ? "ti-world" : "ti-shield-check") : "ti-users-group";
     vals.mMainTitle = ctx === "task" ? "Creación de rol" : (ctx === "drawer" ? "Nuevo mensaje masivo" : "Crear publicación");
     vals.mCtxCta = ctx === "modal" ? "Publicar" : "Aplicar audiencia";
     vals.mFooterCtx = ctx !== "task";
@@ -3624,7 +3628,7 @@ class Component extends DCLogic {
     vals.mHub = !st.detOpen && !st.excOpen && st.audOpen && mSub === "hub";
     vals.mMain = !st.detOpen && !st.excOpen && !st.audOpen;
     vals.mSubHeader = !vals.mMain;
-    vals.mTitle = st.detOpen ? "Detalle de tu audiencia" : (st.excOpen ? "Excluyendo usuarios" : (st.allowCommunity ? "Una audiencia determinada" : "Configurar audiencia"));
+    vals.mTitle = st.detOpen ? "Detalle de tu audiencia" : (st.excOpen ? "Excluyendo usuarios" : "Una audiencia determinada");
     vals.mBack = () => {
       const s = this.state;
       if (s.detOpen) return this.closeLayer("det");
@@ -3673,7 +3677,7 @@ class Component extends DCLogic {
       const fromAud = st.detFrom === "aud" && st.draft;
       let src, detReach;
       if (fromAud) { src = st.draft; detReach = this.audReach(st.draft); }
-      else if (st.mode === "all" && st.allowCommunity) { src = { all: true }; detReach = reach; }
+      else if (st.mode === "all") { src = { all: true, scoped: !st.allowCommunity }; detReach = reach; }
       else { src = applied || { groups: [], included: [] }; detReach = reach; }
       const members = this.membersOf(src, !fromAud && showExc ? exc : []);
       Object.assign(vals, this.pickerVals("det", members, null, null, "dk"));
