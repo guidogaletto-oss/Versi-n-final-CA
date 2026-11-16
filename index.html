@@ -3325,7 +3325,7 @@ class Component extends DCLogic {
     this.setState({ menu: null, pk, mFilter: false, sheetDy: 0 });
   }
 
-  pickerVals(ctx, list, selected, setSelected, prefix) {
+  pickerVals(ctx, list, selected, setSelected, prefix, total) {
     const st = this.state;
     const pk = st.pk[ctx];
     const setPk = patch => this.setState(s => ({ pk: { ...s.pk, [ctx]: { ...s.pk[ctx], ...patch } } }));
@@ -3336,19 +3336,21 @@ class Component extends DCLogic {
       (!pk.f.puesto.length || pk.f.puesto.indexOf(p.puesto) >= 0) &&
       Object.keys(pk.f.seg).every(k => !pk.f.seg[k].length || pk.f.seg[k].indexOf(p.attrs[k]) >= 0)
     );
-    const inactN = base.filter(p => p.inactive).length;
-    const actN = base.length - inactN;
+    const k = total != null && list.length ? total / list.length : 1;
+    const allN = Math.round(base.length * k);
+    const inactN = Math.round(base.filter(p => p.inactive).length * k);
+    const actN = allN - inactN;
     const filtered = base.filter(p => pk.status === "all" || (pk.status === "inact" ? p.inactive : !p.inactive));
     const v = {};
     v.pkQ = pk.q;
     v.pkOnQ = e => setPk({ q: e.target.value });
     v.pkShowFilters = ctx !== "det";
     v.pkShowStatus = ctx !== "exc";
-    const pct = base.length ? Math.round(inactN / base.length * 100) : 0;
+    const pct = allN ? Math.round(inactN / allN * 100) : 0;
     v.pkStatusText = "Tu audiencia incluye un " + pct + "% de usuarios desactivados";
     v.pkStatusChips = [
       { id: "act", label: "Activos (" + fmt(actN) + ")" },
-      { id: "all", label: "Todos (" + fmt(base.length) + ")" },
+      { id: "all", label: "Todos (" + fmt(allN) + ")" },
       { id: "inact", label: "Desactivados (" + fmt(inactN) + ")" }
     ].map(c => ({ ...c, on: pk.status === c.id, bg: pk.status === c.id ? "#E3E9FB" : "#FFFFFF", onPick: () => setPk({ status: c.id }) }));
     const segSelCount = Object.keys(pk.f.seg).reduce((a, k) => a + pk.f.seg[k].length, 0);
@@ -3680,7 +3682,7 @@ class Component extends DCLogic {
       else if (st.mode === "all") { src = { all: true, scoped: !st.allowCommunity }; detReach = reach; }
       else { src = applied || { groups: [], included: [] }; detReach = reach; }
       const members = this.membersOf(src, !fromAud && showExc ? exc : []);
-      Object.assign(vals, this.pickerVals("det", members, null, null, "dk"));
+      Object.assign(vals, this.pickerVals("det", members, null, null, "dk", detReach));
       vals.detReachLabel = fmt(detReach);
       vals.detCanEdit = fromAud || (st.mode === "audience" && !!applied);
       vals.onDetEdit = () => {
